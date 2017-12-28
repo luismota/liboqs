@@ -41,6 +41,13 @@ AC_ARG_WITH(
    AC_SUBST(SODIUM_DIR, [$withval])],
   [AC_SUBST(SODIUM_DIR, /usr)]
 )
+AC_ARG_WITH(
+  [m4ri-dir],
+  AS_HELP_STRING([--with-m4ri-dir=dir],[m4ri dir used locally (default /usr).]),
+  [AC_DEFINE_UNQUOTED(M4RIDIR, [$withval], [M4RI DIR used locally])
+   AC_SUBST(M4RI_DIR, [$withval])],
+  [AC_SUBST(M4RI_DIR, /usr)]
+)
 
 # Checks for header files.
 AC_CHECK_HEADERS([fcntl.h inttypes.h limits.h stddef.h stdint.h stdlib.h string.h strings.h sys/time.h unistd.h])
@@ -64,7 +71,7 @@ AC_CHECK_FUNCS([gettimeofday memmove memset pow sqrt strdup])
 AC_CHECK_SIZEOF([size_t])
 
 # Silent rules
-m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+#m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 ######################################################################
 # DOXYGEN SUPPORT
@@ -92,13 +99,41 @@ ARG_ENABL_SET([kex-code-mcbits], [enable KEX-CODE-MCBITS.])
 AM_CONDITIONAL([kex_code_mcbits], [test "x$kex_code_mcbits" = xtrue])
 AM_CONDITIONAL([USE_MCBITS], [test "x$kex_code_mcbits" = xtrue])
 
-ARG_ENABL_SET([kex-ntru], [enable KEX-NTRU.])
-AM_CONDITIONAL([ntru], [test "x$kex_ntru" = xtrue])
-AM_CONDITIONAL([USE_NTRU], [test "x$kex_ntru" = xtrue])
-
 ARG_ENABL_SET([kex-sidh-iqc-ref], [enable KEX-SIDH-IQC-REF.])
 AM_CONDITIONAL([kex_sidh_iqc_ref], [test "x$kex_sidh_iqc_ref" = xtrue])
 AM_CONDITIONAL([USE_SIDH_IQC], [test "x$kex_sidh_iqc_ref" = xtrue])
+
+ARG_DISBL_SET([kex-lwe-frodo], [disable KEX-LWE-FRODO.])
+AM_CONDITIONAL([kex_lwe_frodo], [test "x$kex_lwe_frodo" = xtrue])
+AM_CONDITIONAL([USE_KEX_LWE_FRODO], [test "x$kex_lwe_frodo" = xtrue])
+
+ARG_DISBL_SET([kex-mlwe-kyber], [disable KEX-MLWE-KYBER.])
+AM_CONDITIONAL([kex_mlwe_kyber], [test "x$kex_mlwe_kyber" = xtrue])
+AM_CONDITIONAL([USE_KEX_MLWE_KYBER], [test "x$kex_mlwe_kyber" = xtrue])
+
+ARG_DISBL_SET([kex-ntru], [disable KEX-NTRU.])
+AM_CONDITIONAL([kex_ntru], [test "x$kex_ntru" = xtrue])
+AM_CONDITIONAL([USE_KEX_NTRU], [test "x$kex_ntru" = xtrue])
+
+ARG_DISBL_SET([kex-rlwe-msrln16], [disable KEX-RLWE-MSRLN16.])
+AM_CONDITIONAL([kex_rlwe_msrln16], [test "x$kex_rlwe_msrln16" = xtrue])
+AM_CONDITIONAL([USE_KEX_RLWE_MSRLN16], [test "x$kex_rlwe_msrln16" = xtrue])
+
+ARG_DISBL_SET([kex-rlwe-newhope], [disable KEX-RLWE-NEWHOPE.])
+AM_CONDITIONAL([kex_rlwe_newhope], [test "x$kex_rlwe_newhope" = xtrue])
+AM_CONDITIONAL([USE_KEX_RLWE_NEWHOPE], [test "x$kex_rlwe_newhope" = xtrue])
+
+ARG_DISBL_SET([kex-sidh-cln16], [disable KEX-SIDH-CLN16.])
+AM_CONDITIONAL([kex_sidh_cln16], [test "x$kex_sidh_cln16" = xtrue])
+AM_CONDITIONAL([USE_KEX_SIDH_CLN16], [test "x$kex_sidh_cln16" = xtrue])
+
+ARG_DISBL_SET([sig-picnic], [disable SIG-PICNIC.])
+AM_CONDITIONAL([sig_picnic], [test "x$sig_picnic" = xtrue])
+AM_CONDITIONAL([USE_SIG_PICNIC], [test "x$sig_picnic" = xtrue])
+
+ARG_ENABL_SET([kex-rlwe-newhope-avx2], [enable KEX-RLWE-NEWHOPE-AVX2.])
+AM_CONDITIONAL([kex_rlwe_newhope_avx2], [test "x$kex_rlwe_newhope_avx2" = xtrue])
+AM_CONDITIONAL([USE_KEX_RLWE_NEWHOPE_AVX2], [test "x$kex_rlwe_newhope_avx2" = xtrue])
 
 AC_CANONICAL_HOST
 
@@ -106,13 +141,14 @@ AC_CANONICAL_HOST
 # specifically based on the host
 case $host_os in
   darwin* )
-        AM_CONDITIONAL([ON_DARWIN], [test xtrue = xtrue])
+        darwin=true
+        ;;
+  linux-android*)
+        AM_CFLAGS=${AM_CFLAGS}" -pie "
+        linux=true
         ;;
   linux*)
-        if test x"${ac_cv_sizeof_size_t}" = x"8";then
-          AM_CPPFLAGS=${AM_CPPFLAGS}" -DSIDH_ASM -march=x86-64 -D__LINUX__"
-        fi
-        AM_CONDITIONAL([ON_DARWIN], [test xtrue = xfalse])
+        linux=true
         ;;
     *)
         #Default Case
@@ -120,6 +156,25 @@ case $host_os in
         ;;
 esac
 
+AM_CONDITIONAL([ON_DARWIN], [test "x$darwin" = xtrue])
+
+# Enable assembly optimizations here
+# Appearenly asm optimizations do not work well with darwin
+if test x"$linux" = x"true"; then
+  case $host_cpu in
+    x86_64* )
+        AM_CPPFLAGS=${AM_CPPFLAGS}" -DSIDH_ASM -march=x86-64"
+        x86_64=true
+        ;;
+    aarch64* )
+        AM_CPPFLAGS=${AM_CPPFLAGS}" -DSIDH_ASM -march=armv8-a+crc"
+        arm64=true
+        ;;
+  esac
+fi
+
+AM_CONDITIONAL([X86_64], [test "x$x86_64" = xtrue])
+AM_CONDITIONAL([ARM64], [test "x$arm64" = xtrue])
 
 # Common sources
 SRCDIR=" src/common"
@@ -129,13 +184,43 @@ SRCDIR=${SRCDIR}" src/crypto/aes src/crypto/rand src/crypto/sha3 src/crypto/rand
 
 # KEX
 SRCDIR=${SRCDIR}" src/kex"
-SRCDIR=${SRCDIR}" src/kex_lwe_frodo"
-SRCDIR=${SRCDIR}" src/kex_mlwe_kyber"
-SRCDIR=${SRCDIR}" src/kex_ntru"
 SRCDIR=${SRCDIR}" src/kex_rlwe_bcns15"
-SRCDIR=${SRCDIR}" src/kex_rlwe_msrln16"
-SRCDIR=${SRCDIR}" src/kex_rlwe_newhope"
-SRCDIR=${SRCDIR}" src/kex_sidh_cln16"
+
+if test x"$kex_lwe_frodo" = x"true"; then
+  SRCDIR=${SRCDIR}" src/kex_lwe_frodo"
+  AM_CPPFLAGS=${AM_CPPFLAGS}" -DENABLE_KEX_LWE_FRODO"
+  AC_DEFINE(ENABLE_KEX_LWE_FRODO, 1, "Define to 1 when FRODO enabled")
+fi
+
+if test x"$kex_mlwe_kyber" = x"true"; then
+  SRCDIR=${SRCDIR}" src/kex_mlwe_kyber"
+  AM_CPPFLAGS=${AM_CPPFLAGS}" -DENABLE_KEX_MLWE_KYBER"
+  AC_DEFINE(ENABLE_KEX_MLWE_KYBER, 1, "Define to 1 when KYBER enabled")
+fi
+
+if test x"$kex_ntru" = x"true"; then
+  SRCDIR=${SRCDIR}" src/kex_ntru"
+  AM_CPPFLAGS=${AM_CPPFLAGS}" -DENABLE_KEX_NTRU"
+  AC_DEFINE(ENABLE_KEX_NTRU, 1, "Define to 1 when NTRU enabled")
+fi
+
+if test x"$kex_rlwe_msrln16" = x"true"; then
+  SRCDIR=${SRCDIR}" src/kex_rlwe_msrln16"
+  AM_CPPFLAGS=${AM_CPPFLAGS}" -DENABLE_KEX_RLWE_MSRLN16"
+  AC_DEFINE(ENABLE_KEX_RLWE_MSRLN16, 1, "Define to 1 when RLWE MSRLN16 enabled")
+fi
+
+if test x"$kex_rlwe_newhope" = x"true"; then
+  SRCDIR=${SRCDIR}" src/kex_rlwe_newhope"
+  AM_CPPFLAGS=${AM_CPPFLAGS}" -DENABLE_KEX_RLWE_NEWHOPE"
+  AC_DEFINE(ENABLE_KEX_RLWE_NEWHOPE, 1, "Define to 1 when RLWE NEWHOPE enabled")
+fi
+
+if test x"$kex_sidh_cln16" = x"true"; then
+  SRCDIR=${SRCDIR}" src/kex_sidh_cln16"
+  AM_CPPFLAGS=${AM_CPPFLAGS}" -DENABLE_KEX_SIDH_CLN16"
+  AC_DEFINE(ENABLE_KEX_SIDH_CLN16, 1, "Define to 1 when SIDH CLN16 enabled")
+fi
 
 # Conditional KEX
 if test x"$kex_code_mcbits" = x"true"; then
@@ -145,8 +230,20 @@ if test x"$kex_sidh_iqc_ref" = x"true"; then
   SRCDIR=${SRCDIR}" src/kex_sidh_iqc_ref"
 fi
 
+# SIG
+SRCDIR=${SRCDIR}" src/sig"
+
+if test x"$sig_picnic" = x"true"; then
+  SRCDIR=${SRCDIR}" src/sig_picnic"
+  AM_CPPFLAGS=${AM_CPPFLAGS}" -DENABLE_SIG_PICNIC"
+  AC_CONFIG_COMMANDS_POST([echo Building Picnic library])
+  AC_CONFIG_COMMANDS_POST([cd src/sig_picnic])
+  AC_CONFIG_COMMANDS_POST([./build_picnic.sh])
+  AC_CONFIG_COMMANDS_POST([cd ../..])
+fi
+
 # Flags
-AM_CPPFLAGS="-g -std=gnu11 -Wno-unused-function -Werror -Wpedantic -Wall -Wextra -DCONSTANT_TIME"
+AM_CPPFLAGS=${AM_CPPFLAGS}" -g -std=gnu11 -Wno-unused-function -Werror -Wpedantic -Wall -Wextra -DCONSTANT_TIME"
 if test x"$aes_ni" = x"true"; then
   AM_CPPFLAGS=${AM_CPPFLAGS}" -DAES_ENABLE_NI"
 fi
@@ -155,19 +252,36 @@ if test x"$openssl" = x"true"; then
 fi
 if test x"$kex_code_mcbits" = x"true"; then
   AM_CPPFLAGS=${AM_CPPFLAGS}" -DENABLE_CODE_MCBITS"
+  AC_DEFINE(ENABLE_CODE_MCBITS, 1, "Define to 1 when MCBITS enabled")
 fi
 if test x"$kex_sidh_iqc_ref" = x"true"; then
   AM_CPPFLAGS=${AM_CPPFLAGS}" -DENABLE_SIDH_IQC_REF"
+  SRCDIR=${SRCDIR}" src/kex_sidh_iqc_ref"
+  AC_DEFINE(ENABLE_SIDH_IQC_REF, 1, "Define to 1 when SIDH IQC enabled")
+fi
+
+if test x"$kex_rlwe_newhope_avx2" = x"true"; then
+  SRCDIR=${SRCDIR}" src/kex_rlwe_newhope/avx2"
+  AM_CPPFLAGS=${AM_CPPFLAGS}" -DENABLE_KEX_RLWE_NEWHOPE_AVX2"
 fi
 
 AC_SUBST(AM_CPPFLAGS)
+AC_SUBST(AM_CFLAGS)
 AC_SUBST(SRCDIR)
 AC_SUBST(USE_OPENSSL)
 AC_SUBST(USE_AES_NI)
-AC_SUBST(USE_NTRU)
+AC_SUBST(USE_KEX_NTRU)
 AC_SUBST(USE_MCBITS)
 AC_SUBST(USE_SIDH_IQC)
+AC_SUBST(USE_KEX_LWE_FRODO)
+AC_SUBST(USE_KEX_MLWE_KYBER)
+AC_SUBST(USE_KEX_RLWE_MSRLN16)
+AC_SUBST(USE_KEX_RLWE_NEWHOPE)
+AC_SUBST(USE_KEX_SIDH_CLN16)
+AC_SUBST(USE_SIG_PICNIC)
 AC_SUBST(ON_DARWIN)
+AC_SUBST(X86_64)
+AC_SUBST(USE_KEX_RLWE_NEWHOPE_AVX2)
 
 
 AC_CONFIG_FILES([Makefile
@@ -186,6 +300,9 @@ AC_CONFIG_FILES([Makefile
                  src/kex_ntru/Makefile
                  src/kex_sidh_iqc_ref/Makefile
                  src/kex_lwe_frodo/Makefile
-                 src/kex_mlwe_kyber/Makefile])
+                 src/sig/Makefile
+                 src/sig_picnic/Makefile
+                 src/kex_mlwe_kyber/Makefile
+                 src/kex_rlwe_newhope/avx2/Makefile])
 
 AC_OUTPUT

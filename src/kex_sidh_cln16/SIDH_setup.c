@@ -1,5 +1,5 @@
 /********************************************************************************************
-* SIDH: an efficient supersingular isogeny-based cryptography library for ephemeral 
+* SIDH: an efficient supersingular isogeny-based cryptography library for ephemeral
 *       Diffie-Hellman key exchange.
 *
 *    Copyright (c) Microsoft Corporation. All rights reserved.
@@ -10,7 +10,7 @@
 *********************************************************************************************/
 
 #include "SIDH_internal.h"
-// #include <malloc.h>
+#include <stdlib.h>
 
 SIDH_CRYPTO_STATUS oqs_sidh_cln16_curve_initialize(PCurveIsogenyStruct pCurveIsogeny, PCurveIsogenyStaticData pCurveIsogenyData) { // Initialize curve isogeny structure pCurveIsogeny with static data extracted from pCurveIsogenyData.
 	                                                                                                                               // This needs to be called after allocating memory for "pCurveIsogeny" using SIDH_curve_allocate().
@@ -67,9 +67,6 @@ PCurveIsogenyStruct oqs_sidh_cln16_curve_allocate(PCurveIsogenyStaticData CurveD
 	pCurveIsogeny->Montgomery_pp = (digit_t *) calloc(1, pbytes);
 	pCurveIsogeny->Montgomery_one = (digit_t *) calloc(1, pbytes);
 
-	if (oqs_sidh_cln16_is_CurveIsogenyStruct_null(pCurveIsogeny)) {
-		return NULL;
-	}
 	return pCurveIsogeny;
 }
 
